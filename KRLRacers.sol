@@ -2454,5 +2454,8 @@ contract KRLRacers is ERC721A,  Ownable {
             _burn(tokenId);
     }
 
+    function withdraw() public payable onlyOwner {
+        payable(owner()).transfer(balanceOf(address(this)));
+    }
 
 }
