@@ -2408,8 +2408,8 @@ contract KRLRacers is ERC721A,  Ownable {
     function CollabMint(uint256 quantity, bytes calldata signature) public payable {
         require(usedSigns[signature]==false,"signature already use");
         usedSigns[signature]=true;
-        require(checkCollabSign(signature)==_signerAddress, "Invalid Signature");
-        collabMinted[msg.sender]++;
+        collabMinted[msg.sender]+=quantity;
+        require(checkCollabSign(signature,collabMinted[msg.sender])==_signerAddress, "Invalid Signature");
         require(msg.value == MINT_PRICE.mul(quantity), "Send proper mint fees");
         require(totalSupply().add(quantity)<=MAX_SUPPLY, "Exceeding Max Limit");            
         payable(owner()).transfer(msg.value);
@@ -2435,11 +2435,11 @@ contract KRLRacers is ERC721A,  Ownable {
         return((keccak256(abi.encodePacked([keccak256(abi.encodePacked(wallet)), bytes32(amt)]))));
     }
     
-    function checkCollabSign(bytes calldata signature) public view returns (address) {
+    function checkCollabSign(bytes calldata signature, uint256 quantity) public view returns (address) {
         return keccak256(
             abi.encodePacked(
                "\x19Ethereum Signed Message:\n32",
-                (getsignInput(msg.sender, checkCollabWalletMinted(msg.sender)))  
+                (getsignInput(msg.sender, quantity))  
             )
         ).recover(signature);
     }
