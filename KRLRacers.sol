@@ -2240,7 +2240,6 @@ contract KRLRacers is ERC721A,  Ownable {
     mapping(address=>uint256) private allowlistMinted;
     mapping(address=>uint256) private collabMinted;
     mapping(address=> bool) public holderFees;
-    Counters.Counter private _tokenIdCounter;
     event HolderSaleTimeChanged(uint256 startTime, uint256 endTime);
     event AllowListSaleTimeChanged(uint256 startTime, uint256 endTime);
     event PublicSaleTimeChanged(uint256 startTime, uint256 endTime);
