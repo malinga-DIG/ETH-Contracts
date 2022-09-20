@@ -2174,7 +2174,7 @@ library Address {
      *
      * _Available since v3.4._
      */
-    function functionDelegateCall(
+    function functionDelegateCall(  
         address target,
         bytes memory data,
         string memory errorMessage
@@ -2247,6 +2247,7 @@ contract KRLRacers is ERC721A,  Ownable {
 
     constructor(address signerAddress_) ERC721A("KRLRacers", "Racers") {       
         _signerAddress = signerAddress_;
+        setBaseURI("https://api-nft.kartracingleague.com/api/nft/");
     }
 
     function checkHolderWallet(address wallet) public view returns(uint256) {
@@ -2408,6 +2409,7 @@ contract KRLRacers is ERC721A,  Ownable {
         require(usedSigns[signature]==false,"signature already use");
         usedSigns[signature]=true;
         require(checkCollabSign(signature)==_signerAddress, "Invalid Signature");
+        collabMinted[msg.sender]++;
         require(msg.value == MINT_PRICE.mul(quantity), "Send proper mint fees");
         require(totalSupply().add(quantity)<=MAX_SUPPLY, "Exceeding Max Limit");            
         payable(owner()).transfer(msg.value);
@@ -2420,7 +2422,7 @@ contract KRLRacers is ERC721A,  Ownable {
         baseURI_ = baseuri;
     }
 
-  function checkSign(bytes calldata signature,uint256 quantity) private view returns (address) {
+    function checkSign(bytes calldata signature,uint256 quantity) private view returns (address) {
         return keccak256(
             abi.encodePacked(
                "\x19Ethereum Signed Message:\n32",
