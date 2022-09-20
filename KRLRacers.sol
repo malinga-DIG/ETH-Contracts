@@ -2225,6 +2225,7 @@ contract KRLRacers is ERC721A,  Ownable {
     uint256 public immutable MAX_SUPPLY = 12000;
     uint256 public immutable HOLDERS_LIMIT = 7681;
     uint256 public immutable ALLOWLIST_LIMIT = 4000;
+    uint256 public CURRENT_ALLOWLIST_CAP;
     uint256 public HOLDER_MINT_PRICE =0.03 ether;
     uint256 public MINT_PRICE=0.09 ether;
     uint256 private HOLDERS_MINTED;
@@ -2280,9 +2281,9 @@ contract KRLRacers is ERC721A,  Ownable {
     function availableForAllowlist() public view  returns(uint256){
         require(whenAllowlistSaleIsOn()==true,"whitelist sale not start yet" );
         if(block.timestamp>HOLDER_SALE_END_TIME){
-        return checkPhaseLimit().add(HOLDERS_LIMIT.sub(HOLDERS_MINTED));
+        return CURRENT_ALLOWLIST_CAP.add(HOLDERS_LIMIT.sub(HOLDERS_MINTED));
         } else {
-            return checkPhaseLimit();
+            return CURRENT_ALLOWLIST_CAP;
         }
     }
 
@@ -2317,25 +2318,8 @@ contract KRLRacers is ERC721A,  Ownable {
         
     }    
 
-    function checkPhaseLimit() public view returns(uint256 phaseLimit){
-        if(block.timestamp>1665842400){
-            /* 15 October 2 PM UTC */
-            return 4000;
-        }
-        else if(block.timestamp>1665237600){
-            /* 8 October 2 PM UTC */
-            return 3000;
-        }
-        else if(block.timestamp>1664632800){
-            /* 1 October 2 PM UTC */
-            return 2000;
-        }
-        else if(block.timestamp>1664028000){
-            /* 24 September 2 PM UTC */
-            return 1000;
-        } else {
-            return 0;
-        }
+    function setAllowlistCap(uint256 limit_) public isModifier {
+        CURRENT_ALLOWLIST_CAP = limit_;
     }
 
     function changeHolderSaleTime(uint256 startTime, uint256 endTime) public isModifier {
