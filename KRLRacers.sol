@@ -2245,7 +2245,7 @@ contract KRLRacers is ERC721A,  Ownable {
     event PublicSaleTimeChanged(uint256 startTime, uint256 endTime);
 
 
-    constructor(address signerAddress_) ERC721A("KRLRacers", "Racers") {       
+    constructor(address signerAddress_) ERC721A("KRL Racers", "Racers") {       
         _signerAddress = signerAddress_;
         setBaseURI("https://api-nft.kartracingleague.com/api/nft/");
     }
@@ -2257,7 +2257,7 @@ contract KRLRacers is ERC721A,  Ownable {
         return allowlistMinted[wallet];
     }
     function checkCollabWalletMinted(address wallet) public view returns(uint256) {
-        return allowlistMinted[wallet];
+        return collabMinted[wallet];
     }
 
     function checkHolderMinted() public view returns(uint256){
