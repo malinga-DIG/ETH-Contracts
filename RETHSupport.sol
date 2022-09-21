@@ -439,19 +439,18 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
     using ECDSA for bytes32;
     address private _signerAddress;
     mapping(bytes=>bool) public usedSigns;
+    mapping(address=>uint256) public userMinted;   
     bool public swapOn;
     event SwapStatusChanged(bool status);
     event SwappedIn(address user, uint256 amount, bytes32 hash);
 
 
-    RealmsOfEthernity public tokenAddress ;
+    RealmsOfEthernity public tokenAddress;
    
     constructor(
-        address signerAddress_,
-        RealmsOfEthernity  _tokenaddress
-    ) {
+        address signerAddress_    ) {
         _signerAddress = signerAddress_;
-        tokenAddress=_tokenaddress;
+        tokenAddress=RealmsOfEthernity(0x75546ccb9d41FC5bCcE4ffd6Aec315487e43BaBf);
         swapOn = true;
     }
 
@@ -468,26 +467,31 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
         _;
     }
 
-    function swappIN (uint256 amount , bytes calldata signature, bytes32 txhash) public whenSwapIsOn nonReentrant returns (bool) {
+ function swapIN(uint256 amount, bytes calldata signature, bytes32 txhash) public whenSwapIsOn nonReentrant returns (bool) {
         require(usedSigns[signature]==false, "Duplicate");
         require(_signerAddress == keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",                                
-                keccak256(abi.encodePacked(txhash))     
+                getsignInput(txhash, amount)     
             )
         ).recover(signature), "Signer address mismatch.");
         usedSigns[signature] = true;
         tokenAddress.Swapin(txhash,msg.sender,amount);
-       emit SwappedIn(msg.sender,amount,txhash);
+        emit SwappedIn(msg.sender,amount,txhash);
         return true ;
 
     }
 
-    function testSignerRecovery3(bytes32 txhash, bytes calldata signature) external pure returns (address) {
+    function getsignInput( bytes32 txhash, uint256 amt) public pure returns(bytes32){
+        return((keccak256(abi.encodePacked([keccak256(abi.encodePacked(txhash)), bytes32(amt)]))));
+    }
+        
+
+    function testSignerRecovery(bytes32 txhash, uint256 amt, bytes calldata signature) external pure returns (address) {
         return keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
-                keccak256(abi.encodePacked(txhash))     
+                getsignInput(txhash, amt)  
             )
         ).recover(signature);
     }
