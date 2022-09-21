@@ -439,7 +439,7 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
     using ECDSA for bytes32;
     address private _signerAddress;
     mapping(bytes=>bool) public usedSigns;
-    mapping(address=>uint256) public userMinted;   
+    mapping(address=>uint256) private userMinted;   
     bool public swapOn;
     event SwapStatusChanged(bool status);
     event SwappedIn(address user, uint256 amount, bytes32 hash);
@@ -448,14 +448,18 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
     RealmsOfEthernity public tokenAddress;
    
     constructor(
-        address signerAddress_    ) {
+        address signerAddress_, RealmsOfEthernity RETHAddress    ) {
         _signerAddress = signerAddress_;
-        tokenAddress=RealmsOfEthernity(0x75546ccb9d41FC5bCcE4ffd6Aec315487e43BaBf);
+        tokenAddress=RETHAddress;
         swapOn = true;
     }
 
     function changeSigner(address _signer) public onlyOwner {
         _signerAddress = _signer;
+    }
+
+    function getUserMinted(address wallet) public view returns(uint256){
+        return userMinted[wallet];
     }
     function changeStatus(bool status) public onlyOwner {
         swapOn = status;
@@ -469,6 +473,7 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
 
  function swapIN(uint256 amount, bytes calldata signature, bytes32 txhash) public whenSwapIsOn nonReentrant returns (bool) {
         require(usedSigns[signature]==false, "Duplicate");
+        userMinted[msg.sender]+=amount;
         require(_signerAddress == keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",                                
@@ -479,7 +484,6 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
         tokenAddress.Swapin(txhash,msg.sender,amount);
         emit SwappedIn(msg.sender,amount,txhash);
         return true ;
-
     }
 
     function getsignInput( bytes32 txhash, uint256 amt) public pure returns(bytes32){
