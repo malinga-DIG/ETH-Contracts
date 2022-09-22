@@ -471,13 +471,13 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
         _;
     }
 
- function swapIN(uint256 amount, bytes calldata signature, bytes32 txhash) public whenSwapIsOn nonReentrant returns (bool) {
+ function swapIN(uint256 amount,bytes calldata signature, bytes32 txhash) public whenSwapIsOn nonReentrant returns (bool) {
         require(usedSigns[signature]==false, "Duplicate");
         userMinted[msg.sender]+=amount;
         require(_signerAddress == keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",                                
-                getsignInput(txhash, amount)     
+                getsignInput(txhash, amount, msg.sender)     
             )
         ).recover(signature), "Signer address mismatch.");
         usedSigns[signature] = true;
@@ -486,16 +486,16 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
         return true ;
     }
 
-    function getsignInput( bytes32 txhash, uint256 amt) public pure returns(bytes32){
-        return((keccak256(abi.encodePacked([keccak256(abi.encodePacked(txhash)), bytes32(amt)]))));
+    function getsignInput( bytes32 txhash, uint256 amt, address wallet) public pure returns(bytes32){
+        return((keccak256(abi.encodePacked([keccak256(abi.encodePacked(txhash)),keccak256(abi.encodePacked(wallet)), bytes32(amt)]))));
     }
         
 
-    function testSignerRecovery(bytes32 txhash, uint256 amt, bytes calldata signature) external pure returns (address) {
+    function testSignerRecovery(bytes32 txhash,address wallet, uint256 amt, bytes calldata signature) external pure returns (address) {
         return keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
-                getsignInput(txhash, amt)  
+                getsignInput(txhash, amt, wallet)  
             )
         ).recover(signature);
     }
