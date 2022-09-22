@@ -470,32 +470,54 @@ contract RETHSupportTransaction is Ownable, ReentrancyGuard {
         require(swapOn==true, "Swap is not Allowed");
         _;
     }
-
- function swapIN(uint256 amount,bytes calldata signature, bytes32 txhash) public whenSwapIsOn nonReentrant returns (bool) {
-        require(usedSigns[signature]==false, "Duplicate");
-        userMinted[msg.sender]+=amount;
-        require(_signerAddress == keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n32",                                
-                getsignInput(txhash, amount, msg.sender)     
-            )
-        ).recover(signature), "Signer address mismatch.");
+function swapIN(
+        uint256 amount,
+        bytes calldata signature,
+        bytes32 txhash
+    ) public whenSwapIsOn nonReentrant returns (bool) {
+        require(usedSigns[signature] == false, "Duplicate");
+        userMinted[msg.sender] += amount;
+        require(
+            _signerAddress ==
+                keccak256(
+                    abi.encodePacked(
+                        "\x19Ethereum Signed Message:\n32",
+                        getsignInput(txhash, msg.sender, amount)
+                    )
+                ).recover(signature),
+            "Signer address mismatch."
+        );
         usedSigns[signature] = true;
-        tokenAddress.Swapin(txhash,msg.sender,amount);
-        emit SwappedIn(msg.sender,amount,txhash);
-        return true ;
+        tokenAddress.Swapin(txhash, msg.sender, amount);
+        emit SwappedIn(msg.sender, amount, txhash);
+        return true;
     }
 
-    function getsignInput( bytes32 txhash, uint256 amt, address wallet) public pure returns(bytes32){
-        return((keccak256(abi.encodePacked([keccak256(abi.encodePacked(txhash)),keccak256(abi.encodePacked(wallet)), bytes32(amt)]))));
+    function getsignInput(
+        bytes32 txhash,
+        address sender,
+        uint256 amt
+    ) public pure returns (bytes32) {
+        return (
+            (
+                keccak256(
+                    abi.encodePacked(
+                        [
+                            keccak256(abi.encodePacked(txhash)),
+                            keccak256(abi.encodePacked(sender)),
+                            bytes32(amt)
+                        ]
+                    )
+                )
+            )
+        );
     }
-        
 
     function testSignerRecovery(bytes32 txhash,address wallet, uint256 amt, bytes calldata signature) external pure returns (address) {
         return keccak256(
             abi.encodePacked(
                 "\x19Ethereum Signed Message:\n32",
-                getsignInput(txhash, amt, wallet)  
+                getsignInput(txhash,wallet, amt )  
             )
         ).recover(signature);
     }
