@@ -299,9 +299,8 @@ abstract contract ReentrancyGuard {
 contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
     
     using SafeMath for uint256;
-    IERC20 public rewardToken;
-    IERC20 public depositToken;
-    address public RETH_LP=0x26a7Ef71cE7A39786062a5C7956B0a26722E9A7A;
+    IERC20 public rewardToken=IERC20(0x75546ccb9d41FC5bCcE4ffd6Aec315487e43BaBf);
+    IERC20 public RETH_LP=IERC20(0x26a7Ef71cE7A39786062a5C7956B0a26722E9A7A);
     bool public  PauseClaim = false;
     
     uint256 private constant ONE_MONTH_SEC = 2592000;
@@ -347,11 +346,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
     event ClaimPause(bool status);
 
 
-    constructor(IERC20 _rewardtoken,IERC20 _depositToken) {
-        auth = msg.sender;
-        rewardToken = _rewardtoken;
-        depositToken=_depositToken;
-    }
+    constructor() {}
 
 
     function stake(uint256 amount, uint256 months, uint256 poolId) public nonReentrant {
@@ -361,7 +356,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
  
 
     function _stake(uint256 amount, uint256 months, uint256 poolId) private {
-        depositToken.transferFrom(msg.sender, address(this), amount);
+        RETH_LP.transferFrom(msg.sender, address(this), amount);
          Pool storage pool = pools[poolId];
          require(pool.stakingPause==false,"STAKING PAUSE");
         userstakes[poolId][msg.sender]++;
@@ -388,10 +383,10 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         uint256 rewards = gtreward.sub(Stakes[poolId][msg.sender][stakeId].claimed);
         Stakes[poolId][msg.sender][stakeId].claimed += rewards;
         pool.totalRewardsClaimed +=rewards;
-        depositToken.transfer(msg.sender, stakeamt );
+        RETH_LP.transfer(msg.sender, stakeamt );
         rewardToken.transfer(msg.sender, rewards );
 
-        emit StakingUpdate(msg.sender, stakeamt, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, getTotalRewards(msg.sender, stakeId,poolId),poolId);
+        emit StakingUpdate(msg.sender, stakeamt, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, Stakes[poolId][msg.sender][stakeId].claimed,poolId);
     }
 
     function claimRewards(uint256 stakeId,uint256 poolId) public nonReentrant {
@@ -404,7 +399,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         Stakes[poolId][msg.sender][stakeId].claimed += clamt;
         pool.totalRewardsClaimed +=clamt;
         rewardToken.transfer(msg.sender, clamt);
-        emit StakingUpdate(msg.sender, Stakes[poolId][msg.sender][stakeId].amount, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, Stakes[poolId][msg.sender][stakeId].claimed,poolId);
+        emit StakingUpdate(msg.sender, Stakes[poolId][msg.sender][stakeId].amount, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, false, Stakes[poolId][msg.sender][stakeId].claimed,poolId);
     }
 
     function getStakes( address wallet,uint256 poolId) public view returns(stakes[] memory){
@@ -428,7 +423,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         return rewards;
     }
 
-     function getCurrentRewards(address wallet, uint256 stakeId,uint256 poolId) public view returns(uint256) {
+    function getCurrentRewards(address wallet, uint256 stakeId,uint256 poolId) public view returns(uint256) {
         require(Stakes[poolId][wallet][stakeId].amount != 0,"ZERO amount staked");
         uint256 stakeamt = Stakes[poolId][wallet][stakeId].approxRETH;
         uint256 mos = Stakes[poolId][wallet][stakeId].months;
@@ -442,15 +437,12 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
 
     function getApproxRETH() public view returns(uint256) {
         uint256 lp_supply = IERC20(RETH_LP).totalSupply();
-        uint256 currentReth = IERC20(rewardToken).balanceOf(RETH_LP);
+        uint256 currentReth = IERC20(rewardToken).balanceOf(address(RETH_LP));
         uint256 approxRETHPerLP = currentReth/lp_supply;
-        return approxRETHPerLP ;
-        
+        return approxRETHPerLP;
     }
 
-
-
-     function rewardsClaimed(uint256 poolId ) public view returns(uint256){
+    function rewardsClaimed(uint256 poolId ) public view returns(uint256){
         Pool storage pool = pools[poolId];
         return pool.totalRewardsClaimed;
     }
@@ -463,8 +455,6 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         APY[poolId][12] = apys[3];
         emit APYSet(apys);
     }
-
-
 
     function withdrawToken(IERC20 _token) external nonReentrant onlyAuth {
         _token.transfer(auth, _token.balanceOf(address(this)));
@@ -486,10 +476,10 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
          pool.stakingPause = _pause;
          emit StakingPause(_pause);
     }
+
     function pauseClaim(bool status) public onlyAuth {
         PauseClaim = status;
         emit ClaimPause(status);
-
     }
 
 }
