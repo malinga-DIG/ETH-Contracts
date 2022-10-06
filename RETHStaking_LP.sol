@@ -433,7 +433,7 @@ contract RETHSLPStaking is Ownable, ReentrancyGuard  {
          require(pool.stakingPause==false,"STAKING PAUSE");
         userstakes[poolId][msg.sender]++;
         pool.tokensStaked +=amount;
-        uint256 duration = block.timestamp.add( months.mul(30 days));   
+        uint256 duration = block.timestamp.add( months.mul(ONE_MONTH_SEC));   
         uint256 approxRETH = getApproxRETH().mul(amount);
         Stakes[poolId][msg.sender].push(stakes(msg.sender, amount, block.timestamp, duration, months, false,approxRETH, 0));
         emit StakingUpdate(msg.sender, amount, block.timestamp, duration, false, 0,poolId);
