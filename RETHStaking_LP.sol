@@ -269,34 +269,105 @@ abstract contract ReentrancyGuard {
         // https://eips.ethereum.org/EIPS/eip-2200)
         _status = _NOT_ENTERED;
     }
-}contract SMAuth {
+}
 
-        address public auth;
-        bool internal locked;
-        
-        modifier onlyAuth {
-        require(isAuthorized(msg.sender));
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+/**
+ * @dev Contract module which provides a basic access control mechanism, where
+ * there is an account (an owner) that can be granted exclusive access to
+ * specific functions.
+ *
+ * By default, the owner account will be the one that deploys the contract. This
+ * can later be changed with {transferOwnership}.
+ *
+ * This module is used through inheritance. It will make available the modifier
+ * `onlyOwner`, which can be applied to your functions to restrict their use to
+ * the owner.
+ */
+abstract contract Ownable is Context {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor() {
+        _transferOwnership(_msgSender());
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        _checkOwner();
         _;
     }
 
-    modifier nonReentrancy() {
-        require(!locked, "No reentrancy allowed");
-
-        locked = true;
-        _;
-        locked = false;
-    }
-    function setAuth(address src1) public onlyAuth {
-        auth = src1;
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
     }
 
-    function isAuthorized(address src) internal view returns (bool) {
-        if(src == auth){
-            return true;
-        } else return false;
+    /**
+     * @dev Throws if the sender is not the owner.
+     */
+    function _checkOwner() internal view virtual {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
     }
- }
-contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
+
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        _transferOwnership(address(0));
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        _transferOwnership(newOwner);
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Internal function without access restriction.
+     */
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+contract RETHSLPStaking is Ownable, ReentrancyGuard  {
     
     using SafeMath for uint256;
     IERC20 public sRETH=IERC20(0x66e7C1bDA2F82b2D3Aed82E2862F9CDeDFa1E9Df); //sRETH
@@ -371,7 +442,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
     function unStake(uint256 stakeId,uint256 poolId ) public nonReentrant{
         require(Stakes[poolId][msg.sender][stakeId].collected == false ,"ALREADY WITHDRAWN");
         require(Stakes[poolId][msg.sender][stakeId].endTime < block.timestamp,"STAKING TIME NOT ENDED");
-        require(PauseClaim==false, "Calim Pause");
+        require(PauseClaim==false, "Claim Pause");
         _unstake(stakeId,poolId);
     }
 
@@ -390,7 +461,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
     }
 
     function claimRewards(uint256 stakeId,uint256 poolId) public nonReentrant {
-        require(PauseClaim==false, "Calim Pause");
+        require(PauseClaim==false, "Claim Pause");
         Pool storage pool = pools[poolId];
         require(Stakes[poolId][msg.sender][stakeId].claimed < getTotalRewards(msg.sender, stakeId,poolId), "All claimed");
         uint256 cuamt = getCurrentRewards(msg.sender, stakeId,poolId);
@@ -447,7 +518,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         return pool.totalRewardsClaimed;
     }
 
-    function setAPYs(uint256[] memory apys, uint256 poolId) external onlyAuth {
+    function setAPYs(uint256[] memory apys, uint256 poolId) external onlyOwner {
        require(apys.length == 4,"4 INDEXED ARRAY ALLOWED");
         APY[poolId][1] = apys[0];
         APY[poolId][3] = apys[1];
@@ -456,12 +527,12 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         emit APYSet(apys);
     }
 
-    function withdrawToken(IERC20 _token) external nonReentrant onlyAuth {
-        _token.transfer(auth, _token.balanceOf(address(this)));
+    function withdrawToken(IERC20 _token) external nonReentrant onlyOwner {
+        _token.transfer(owner(), _token.balanceOf(address(this)));
     }
 
      
-     function createPool() external onlyAuth {
+     function createPool() external onlyOwner {
         Pool memory pool;
         pool.totalRewardsClaimed =  0;
         pool.tokensStaked=0;
@@ -471,13 +542,13 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         emit PoolCreated(poolId);
     }
 
-    function pauseStaking (bool _pause, uint256 poolId) external onlyAuth {
+    function pauseStaking (bool _pause, uint256 poolId) external onlyOwner {
          Pool storage pool = pools[poolId];
          pool.stakingPause = _pause;
          emit StakingPause(_pause);
     }
 
-    function pauseClaim(bool status) public onlyAuth {
+    function pauseClaim(bool status) public onlyOwner {
         PauseClaim = status;
         emit ClaimPause(status);
     }
