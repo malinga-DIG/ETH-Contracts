@@ -296,13 +296,13 @@ abstract contract ReentrancyGuard {
         } else return false;
     }
  }
-contract RETHStaking is SMAuth, ReentrancyGuard  {
+contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
     
     using SafeMath for uint256;
     IERC20 public rewardToken;
     IERC20 public depositToken;
     address public RETH_LP=0x26a7Ef71cE7A39786062a5C7956B0a26722E9A7A;
-   
+    bool public  PauseClaim = false;
     
     uint256 private constant ONE_MONTH_SEC = 2592000;
     Pool[] public pools; // Staking pools
@@ -324,7 +324,8 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
         uint256 startTime,
         uint256 endTime,
         bool collected,
-        uint256 claimed
+        uint256 claimed,
+        uint256 poolId
     );
     event APYSet(
         uint256[] APYs
@@ -333,14 +334,17 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
       struct Pool {
         uint256 tokensStaked; // Total tokens staked
         uint256 totalRewardsClaimed; // Last block number the user had their rewards calculated
+        bool stakingPause;
       }
         
 
     mapping(uint256=> mapping(address=>stakes[])) public Stakes;
-  mapping (uint256 => mapping(address=> uint256)) public userstakes;
+    mapping (uint256 => mapping(address=> uint256)) public userstakes;
     mapping (uint256=> mapping(uint256=>uint256) )public APY;
    
     event PoolCreated(uint256 poolId);
+    event StakingPause(bool pause);
+    event ClaimPause(bool status);
 
 
     constructor(IERC20 _rewardtoken,IERC20 _depositToken) {
@@ -348,6 +352,7 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
         rewardToken = _rewardtoken;
         depositToken=_depositToken;
     }
+
 
     function stake(uint256 amount, uint256 months, uint256 poolId) public nonReentrant {
         require(months == 1 || months == 3 || months == 6 || months == 12,"ENTER VALID MONTH");
@@ -357,46 +362,49 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
 
     function _stake(uint256 amount, uint256 months, uint256 poolId) private {
         depositToken.transferFrom(msg.sender, address(this), amount);
+         Pool storage pool = pools[poolId];
+         require(pool.stakingPause==false,"STAKING PAUSE");
         userstakes[poolId][msg.sender]++;
-        Pool storage pool = pools[poolId];
         pool.tokensStaked +=amount;
         uint256 duration = block.timestamp.add( months.mul(30 days));   
         uint256 approxRETH = getApproxRETH().mul(amount);
         Stakes[poolId][msg.sender].push(stakes(msg.sender, amount, block.timestamp, duration, months, false,approxRETH, 0));
-        emit StakingUpdate(msg.sender, amount, block.timestamp, duration, false, 0);
+        emit StakingUpdate(msg.sender, amount, block.timestamp, duration, false, 0,poolId);
     }
 
     function unStake(uint256 stakeId,uint256 poolId ) public nonReentrant{
         require(Stakes[poolId][msg.sender][stakeId].collected == false ,"ALREADY WITHDRAWN");
         require(Stakes[poolId][msg.sender][stakeId].endTime < block.timestamp,"STAKING TIME NOT ENDED");
+        require(PauseClaim==false, "Calim Pause");
         _unstake(stakeId,poolId);
     }
 
     function _unstake(uint256 stakeId,uint256 poolId) private {
+        Pool storage pool = pools[poolId];
         Stakes[poolId][msg.sender][stakeId].collected = true;
         uint256 stakeamt = Stakes[poolId][msg.sender][stakeId].amount;
         uint256 gtreward = getTotalRewards(msg.sender, stakeId,poolId) > Stakes[poolId][msg.sender][stakeId].claimed ? 
                             getTotalRewards(msg.sender, stakeId,poolId) : Stakes[poolId][msg.sender][stakeId].claimed;
         uint256 rewards = gtreward.sub(Stakes[poolId][msg.sender][stakeId].claimed);
         Stakes[poolId][msg.sender][stakeId].claimed += rewards;
-        Pool storage pool = pools[poolId];
         pool.totalRewardsClaimed +=rewards;
         depositToken.transfer(msg.sender, stakeamt );
         rewardToken.transfer(msg.sender, rewards );
 
-        emit StakingUpdate(msg.sender, stakeamt, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, getTotalRewards(msg.sender, stakeId,poolId));
+        emit StakingUpdate(msg.sender, stakeamt, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, getTotalRewards(msg.sender, stakeId,poolId),poolId);
     }
 
     function claimRewards(uint256 stakeId,uint256 poolId) public nonReentrant {
-        require(Stakes[poolId][msg.sender][stakeId].claimed != getTotalRewards(msg.sender, stakeId,poolId));
+        require(PauseClaim==false, "Calim Pause");
+        Pool storage pool = pools[poolId];
+        require(Stakes[poolId][msg.sender][stakeId].claimed < getTotalRewards(msg.sender, stakeId,poolId), "All claimed");
         uint256 cuamt = getCurrentRewards(msg.sender, stakeId,poolId);
         require(getCurrentRewards(msg.sender, stakeId,poolId)>Stakes[poolId][msg.sender][stakeId].claimed, "Already claimed enough");
         uint256 clamt = cuamt.sub( Stakes[poolId][msg.sender][stakeId].claimed);
         Stakes[poolId][msg.sender][stakeId].claimed += clamt;
-        Pool storage pool = pools[poolId];
         pool.totalRewardsClaimed +=clamt;
         rewardToken.transfer(msg.sender, clamt);
-        emit StakingUpdate(msg.sender, Stakes[poolId][msg.sender][stakeId].amount, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, Stakes[poolId][msg.sender][stakeId].claimed);
+        emit StakingUpdate(msg.sender, Stakes[poolId][msg.sender][stakeId].amount, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, Stakes[poolId][msg.sender][stakeId].claimed,poolId);
     }
 
     function getStakes( address wallet,uint256 poolId) public view returns(stakes[] memory){
@@ -424,7 +432,7 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
         require(Stakes[poolId][wallet][stakeId].amount != 0,"ZERO amount staked");
         uint256 stakeamt = Stakes[poolId][wallet][stakeId].approxRETH;
         uint256 mos = Stakes[poolId][wallet][stakeId].months;
-        uint256 etime = Stakes[poolId][wallet][stakeId].endTime > block.timestamp ? block.timestamp : Stakes[poolId][wallet][stakeId].startTime;
+        uint256 etime = Stakes[poolId][wallet][stakeId].endTime > block.timestamp ? block.timestamp : Stakes[poolId][wallet][stakeId].endTime;
         uint256 timec = etime.sub(Stakes[poolId][wallet][stakeId].startTime);
         uint256  rewards = (((stakeamt.mul(APY[poolId][mos])).mul(mos)).div(12)).div(100);
         uint256 crewards = (rewards.mul(timec)).div(mos.mul(ONE_MONTH_SEC));
@@ -436,7 +444,8 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
         uint256 lp_supply = IERC20(RETH_LP).totalSupply();
         uint256 currentReth = IERC20(rewardToken).balanceOf(RETH_LP);
         uint256 approxRETHPerLP = currentReth/lp_supply;
-        return approxRETHPerLP;
+        return approxRETHPerLP ;
+        
     }
 
 
@@ -457,7 +466,7 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
 
 
 
-    function withdrawToken(IERC20 _token) external nonReentrant onlyAuth{
+    function withdrawToken(IERC20 _token) external nonReentrant onlyAuth {
         _token.transfer(auth, _token.balanceOf(address(this)));
     }
 
@@ -466,9 +475,21 @@ contract RETHStaking is SMAuth, ReentrancyGuard  {
         Pool memory pool;
         pool.totalRewardsClaimed =  0;
         pool.tokensStaked=0;
+        pool.stakingPause=false;
         pools.push(pool);
         uint256 poolId = pools.length - 1;
         emit PoolCreated(poolId);
+    }
+
+    function pauseStaking (bool _pause, uint256 poolId) external onlyAuth {
+         Pool storage pool = pools[poolId];
+         pool.stakingPause = _pause;
+         emit StakingPause(_pause);
+    }
+    function pauseClaim(bool status) public onlyAuth {
+        PauseClaim = status;
+        emit ClaimPause(status);
+
     }
 
 }
