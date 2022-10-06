@@ -299,7 +299,8 @@ abstract contract ReentrancyGuard {
 contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
     
     using SafeMath for uint256;
-    IERC20 public rewardToken=IERC20(0x75546ccb9d41FC5bCcE4ffd6Aec315487e43BaBf);
+    IERC20 public sRETH=IERC20(0x66e7C1bDA2F82b2D3Aed82E2862F9CDeDFa1E9Df); //sRETH
+    IERC20 public RETH=IERC20(0x75546ccb9d41FC5bCcE4ffd6Aec315487e43BaBf);
     IERC20 public RETH_LP=IERC20(0x26a7Ef71cE7A39786062a5C7956B0a26722E9A7A);
     bool public  PauseClaim = false;
     
@@ -384,8 +385,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         Stakes[poolId][msg.sender][stakeId].claimed += rewards;
         pool.totalRewardsClaimed +=rewards;
         RETH_LP.transfer(msg.sender, stakeamt );
-        rewardToken.transfer(msg.sender, rewards );
-
+        sRETH.transfer(msg.sender, rewards );
         emit StakingUpdate(msg.sender, stakeamt, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, true, Stakes[poolId][msg.sender][stakeId].claimed,poolId);
     }
 
@@ -398,7 +398,7 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
         uint256 clamt = cuamt.sub( Stakes[poolId][msg.sender][stakeId].claimed);
         Stakes[poolId][msg.sender][stakeId].claimed += clamt;
         pool.totalRewardsClaimed +=clamt;
-        rewardToken.transfer(msg.sender, clamt);
+        sRETH.transfer(msg.sender, clamt);
         emit StakingUpdate(msg.sender, Stakes[poolId][msg.sender][stakeId].amount, Stakes[poolId][msg.sender][stakeId].startTime, Stakes[poolId][msg.sender][stakeId].endTime, false, Stakes[poolId][msg.sender][stakeId].claimed,poolId);
     }
 
@@ -436,8 +436,8 @@ contract RETHSLPStaking is SMAuth, ReentrancyGuard  {
 
 
     function getApproxRETH() public view returns(uint256) {
-        uint256 lp_supply = IERC20(RETH_LP).totalSupply();
-        uint256 currentReth = IERC20(rewardToken).balanceOf(address(RETH_LP));
+        uint256 lp_supply = RETH_LP.totalSupply();
+        uint256 currentReth = RETH.balanceOf(address(RETH_LP));
         uint256 approxRETHPerLP = currentReth/lp_supply;
         return approxRETHPerLP;
     }
