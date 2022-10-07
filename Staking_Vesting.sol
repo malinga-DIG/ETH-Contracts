@@ -737,6 +737,7 @@ function lockRewards(LockParams memory _lock_params) internal {
         }
         return locks_tuple;
     }
+
 }
 
 contract RETHStaking is TokenVesting  {
@@ -779,7 +780,6 @@ contract RETHStaking is TokenVesting  {
         bool stakingPause;
       }
     bool public  PauseClaim = false;
-    
 
     mapping(uint256=> mapping(address=>stakes[])) public Stakes;
     mapping (uint256 => mapping(address=> uint256)) public userstakes;
