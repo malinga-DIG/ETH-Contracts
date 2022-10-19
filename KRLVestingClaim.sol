@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.4;
 import "@openzeppelin/contracts@4.5.0/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts@4.5.0/access/Ownable.sol";
