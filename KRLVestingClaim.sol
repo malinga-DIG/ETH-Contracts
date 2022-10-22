@@ -726,8 +726,8 @@ contract KRLVestedClaim is Ownable, ReentrancyGuard, Pausable {
     bytes32 public root;
 
 
-    uint256 private START_DATE;
-    uint256 private END_DATE;
+    uint256 private  START_DATE;
+    uint256 private  END_DATE;
 
     mapping(address=>uint256) private amountClaimed;
 
@@ -750,12 +750,13 @@ contract KRLVestedClaim is Ownable, ReentrancyGuard, Pausable {
     function vestingDates() public view returns(uint256 startDate, uint256 endDate){
         return (START_DATE, END_DATE);
     }
-    function setDate(uint256 startDate, uint256 endDate) public onlyOwner {
+
+     function setDate(uint256 startDate, uint256 endDate) public onlyOwner {
         START_DATE = startDate;
         END_DATE = endDate;
         emit VestingTimeSet(startDate, endDate);
     }
-
+ 
     function claimDrop(uint256 amount, bytes32[] memory proof) public nonReentrant whenNotPaused {
         bytes32 leaf = getLeaf(msg.sender, amount);
         require(isValid(proof, leaf), "Not a part of Allowlist");
