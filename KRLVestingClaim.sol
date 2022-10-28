@@ -763,7 +763,7 @@ contract KRLVestedClaim is Ownable, ReentrancyGuard, Pausable {
         uint256 unlocked = getWithdrawableTokens(amount);
         uint256 currentWithdrawable = unlocked.sub(userClaimed(msg.sender));
         amountClaimed[msg.sender]+=currentWithdrawable;
-        require(userClaimed(msg.sender) <= amount, "Claimed");
+        require(amountClaimed[msg.sender] <= amount, "Claimed");
         TransferHelper.safeTransfer(address(token), msg.sender, currentWithdrawable);
         emit Claimed(msg.sender, currentWithdrawable);
     }
