@@ -1,7 +1,4 @@
 // SPDX-License-Identifier: MIT
-/**
- *Submitted for verification at polygonscan.com on 2021-12-28
-*/
 
 // File: @openzeppelin/contracts-upgradeable/utils/StorageSlotUpgradeable.sol
 
